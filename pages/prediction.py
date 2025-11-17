@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 MOBILE_CSS = """
 <style>
 body { background-color: #F2F3F7 !important; }
+
+/* 기본 Streamlit header/footer 숨기기 */
 header, footer {visibility: hidden;}
 .block-container {padding-top: 0rem !important;}
 
@@ -19,6 +21,7 @@ header, footer {visibility: hidden;}
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);
     margin-bottom: 25px;
 }
+
 .stButton > button {
     background: #5C6BC0; 
     color:white;
@@ -31,6 +34,10 @@ header, footer {visibility: hidden;}
 """
 st.markdown(MOBILE_CSS, unsafe_allow_html=True)
 
+
+# ---------------------------------------------------
+# ⚠ App Bar 완전 삭제됨
+# ---------------------------------------------------
 
 
 # ---------------------------------------------------
@@ -52,15 +59,15 @@ df = pd.DataFrame({
     "수면": sleep_vals
 })
 
+
 # ---------------------------------------------------
-# 경량 AI 예측 알고리즘 (EMA + 기분/수면 보정)
+# 경량 AI 예측 알고리즘 (EMA + 수면 영향)
 # ---------------------------------------------------
-def ai_predict(stress_series, sleep_today, mood_effect):
+def ai_predict(stress_series, sleep_today):
     """
     설치 없이 동작하는 경량 예측 모델
-    - 최근 변화의 EMA(지수 이동 평균) 기반
+    - 최근 변화의 EMA 기반
     - 수면 패턴 영향 반영
-    - 오늘 기분 영향 반영
     """
     ema_pred = stress_series.ewm(span=5).mean().iloc[-1]
 
@@ -71,14 +78,15 @@ def ai_predict(stress_series, sleep_today, mood_effect):
     elif sleep_today < 6:
         sleep_effect += 5
 
-    final_pred = ema_pred + sleep_effect + mood_effect
+    final_pred = ema_pred + sleep_effect
     return float(np.clip(final_pred, 0, 100))
 
-# 오늘 상태 반영
+
+# 오늘 상태
 today_stress = df.iloc[-1]["스트레스"]
 today_sleep = df.iloc[-1]["수면"]
+predicted_tomorrow = ai_predict(df["스트레스"], today_sleep)
 
-predicted_tomorrow = ai_predict(df["스트레스"], today_sleep, mood_effect)
 
 # ---------------------------------------------------
 # 향후 7일 예측
@@ -88,9 +96,10 @@ fake_series = df["스트레스"].copy()
 current_sleep = today_sleep
 
 for _ in range(7):
-    next_pred = ai_predict(fake_series, current_sleep, mood_effect)
+    next_pred = ai_predict(fake_series, current_sleep)
     future_preds.append(next_pred)
     fake_series = pd.concat([fake_series, pd.Series([next_pred])], ignore_index=True)
+
 
 # ---------------------------------------------------
 # 오늘 요약 카드
@@ -104,6 +113,7 @@ with st.container():
     st.write(f"🤖 AI 예측 — 내일 스트레스: **{predicted_tomorrow:.1f}점**")
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ---------------------------------------------------
 # 향후 7일 예측 그래프
@@ -122,8 +132,9 @@ with st.container():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
+
 # ---------------------------------------------------
-# 최근 60일 추세 그래프
+# 최근 60일 스트레스 변화
 # ---------------------------------------------------
 with st.container():
     st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
