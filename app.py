@@ -19,18 +19,17 @@ st.markdown("## 😊 오늘의 기분을 선택해주세요")
 
 mood = st.segmented_control(
     "오늘 기분",
-    ["😭 매우 스트레스", "😥 스트레스", "🙂 보통", "😊 행복"]
+    ["😊 행복", "🙂 보통", "😥 스트레스", "😭 매우 스트레스"]
 )
 
 # 🔥 초기값(None)일 때 기본값 설정
 if mood is None:
     mood = "🙂 보통"
 
-# session_state 저장
+# 저장
 st.session_state["selected_mood"] = mood
 
 st.write(f"**오늘의 기분:** {mood}")
-
 
 # ---------------------------------------------------
 # 기분 → 모델 영향값
