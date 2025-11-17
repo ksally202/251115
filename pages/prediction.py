@@ -3,53 +3,36 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
-# ---------------------------------------------------
-# 모바일 스타일 CSS
-# ---------------------------------------------------
-MOBILE_CSS = """
-<style>
-body { background-color: #F2F3F7 !important; }
+st.title("📈 스트레스 지수 예측")
+st.caption("오늘의 기분과 수면 패턴을 반영한 AI 예측 모델")
 
-/* 기본 Streamlit header/footer 숨기기 */
-header, footer {visibility: hidden;}
-.block-container {padding-top: 0rem !important;}
-
-.mobile-card {
-    background: white;
-    padding: 20px 25px;
-    border-radius: 18px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    margin-bottom: 25px;
+# ---------------------------------------------------
+# app.py에서 선택한 기분 불러오기
+# ---------------------------------------------------
+mood_score_map = {
+    "😊 행복": -8,
+    "🙂 보통": 0,
+    "😥 스트레스": +7,
+    "😭 매우 스트레스": +15
 }
 
-.stButton > button {
-    background: #5C6BC0; 
-    color:white;
-    border-radius: 12px;
-    padding: 12px;
-    width: 100%;
-    font-size:1.05rem;
-}
-</style>
-"""
-st.markdown(MOBILE_CSS, unsafe_allow_html=True)
+if "selected_mood" in st.session_state:
+    selected_mood = st.session_state["selected_mood"]
+    mood_effect = mood_score_map[selected_mood]
+else:
+    selected_mood = "🙂 보통"
+    mood_effect = 0
 
+st.info(f"오늘 선택한 기분: **{selected_mood}** → 예측 영향값: `{mood_effect}`")
 
 # ---------------------------------------------------
-# ⚠ App Bar 완전 삭제됨
-# ---------------------------------------------------
-
-
-# ---------------------------------------------------
-# 가상 60일 스트레스·수면 데이터 생성
+# 가상 60일 데이터 생성
 # ---------------------------------------------------
 today = datetime.today()
-
 dates = [today - timedelta(days=i) for i in range(60)]
 dates = sorted(dates)
 
 rng = np.random.default_rng(42)
-
 stress_vals = np.clip(rng.normal(70, 10, 60), 20, 100)
 sleep_vals = np.clip(rng.normal(7, 1.2, 60), 4, 10)
 
@@ -59,91 +42,57 @@ df = pd.DataFrame({
     "수면": sleep_vals
 })
 
-
 # ---------------------------------------------------
-# 경량 AI 예측 알고리즘 (EMA + 수면 영향)
+# AI 예측 함수 (EMA + 수면 + 기분 영향)
 # ---------------------------------------------------
-def ai_predict(stress_series, sleep_today):
-    """
-    설치 없이 동작하는 경량 예측 모델
-    - 최근 변화의 EMA 기반
-    - 수면 패턴 영향 반영
-    """
+def ai_predict(stress_series, sleep_today, mood_effect):
     ema_pred = stress_series.ewm(span=5).mean().iloc[-1]
 
-    # 수면 부족 보정
     sleep_effect = 0
     if sleep_today < 5:
         sleep_effect += 10
     elif sleep_today < 6:
         sleep_effect += 5
 
-    final_pred = ema_pred + sleep_effect
+    final_pred = ema_pred + sleep_effect + mood_effect
     return float(np.clip(final_pred, 0, 100))
-
 
 # 오늘 상태
 today_stress = df.iloc[-1]["스트레스"]
 today_sleep = df.iloc[-1]["수면"]
-predicted_tomorrow = ai_predict(df["스트레스"], today_sleep)
 
+predicted_tomorrow = ai_predict(df["스트레스"], today_sleep, mood_effect)
 
 # ---------------------------------------------------
-# 향후 7일 예측
+# 내일 예측 결과
+# ---------------------------------------------------
+st.subheader("🎯 내일의 스트레스 지수")
+st.metric("예측 결과", f"{predicted_tomorrow:.1f} 점")
+
+# ---------------------------------------------------
+# 1주일 예측
 # ---------------------------------------------------
 future_preds = []
 fake_series = df["스트레스"].copy()
 current_sleep = today_sleep
 
 for _ in range(7):
-    next_pred = ai_predict(fake_series, current_sleep)
+    next_pred = ai_predict(fake_series, current_sleep, mood_effect)
     future_preds.append(next_pred)
     fake_series = pd.concat([fake_series, pd.Series([next_pred])], ignore_index=True)
 
+future_dates = [today + timedelta(days=i+1) for i in range(7)]
+
+df_future = pd.DataFrame({
+    "날짜": future_dates,
+    "예측 스트레스": future_preds
+})
+
+st.subheader("📈 향후 7일 스트레스 예측")
+st.line_chart(df_future.set_index("날짜"))
 
 # ---------------------------------------------------
-# 오늘 요약 카드
+# 60일 추세
 # ---------------------------------------------------
-with st.container():
-    st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-
-    st.subheader("📅 오늘의 상태 요약")
-    st.write(f"😵 스트레스: **{today_stress:.1f}점**")
-    st.write(f"💤 수면시간: **{today_sleep:.1f}시간**")
-    st.write(f"🤖 AI 예측 — 내일 스트레스: **{predicted_tomorrow:.1f}점**")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ---------------------------------------------------
-# 향후 7일 예측 그래프
-# ---------------------------------------------------
-with st.container():
-    st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-    st.subheader("📈 향후 7일 AI 스트레스 예측")
-
-    future_dates = [today + timedelta(days=i+1) for i in range(7)]
-    df_future = pd.DataFrame({
-        "날짜": future_dates,
-        "예측 스트레스": future_preds
-    })
-
-    st.line_chart(df_future.set_index("날짜"))
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ---------------------------------------------------
-# 최근 60일 스트레스 변화
-# ---------------------------------------------------
-with st.container():
-    st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-    st.subheader("📘 최근 60일 스트레스 변화")
-
-    st.line_chart(df.set_index("날짜")["스트레스"])
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-    st.markdown('</div>', unsafe_allow_html=True)
+st.subheader("📘 최근 60일 스트레스 변화")
+st.line_chart(df.set_index("날짜")["스트레스"])
