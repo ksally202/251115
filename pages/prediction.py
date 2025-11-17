@@ -31,38 +31,7 @@ header, footer {visibility: hidden;}
 """
 st.markdown(MOBILE_CSS, unsafe_allow_html=True)
 
-# ---------------------------------------------------
-# App Bar
-# ---------------------------------------------------
-st.markdown("""
-<div style="background:#5C6BC0; padding:18px; color:white; 
-            text-align:center; border-radius:0 0 18px 18px; 
-            font-size:22px; font-weight:700;">
-📱 스트레스 예측 앱 (경량 AI 버전)
-</div>
-""", unsafe_allow_html=True)
 
-# ---------------------------------------------------
-# 오늘 기분 선택
-# ---------------------------------------------------
-with st.container():
-    st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-    st.subheader("😊 오늘의 기분은 어떤가요?")
-    mood = st.radio(
-        "오늘의 기분 선택:",
-        ["😀 매우 좋음", "🙂 보통", "😐 피곤함", "😣 스트레스 많음"],
-        horizontal=True
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-mood_score_map = {
-    "😀 매우 좋음": -8,
-    "🙂 보통": 0,
-    "😐 피곤함": +7,
-    "😣 스트레스 많음": +15
-}
-
-mood_effect = mood_score_map[mood]
 
 # ---------------------------------------------------
 # 가상 60일 스트레스·수면 데이터 생성
